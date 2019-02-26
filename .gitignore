@@ -106,4 +106,7 @@ venv.bak/
 # Code runner
 tempCodeRunnerFile.py
 
+# PyCharm
+.idea/
+
 steps.txt
