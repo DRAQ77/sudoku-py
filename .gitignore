@@ -109,4 +109,7 @@ tempCodeRunnerFile.py
 # PyCharm
 .idea/
 
-steps.txt
+# Keras models
+ocr/chars74k_128.hdf5
+ocr/chars74k_thresh.hdf5
+ocr/chars74k.hdf5
