@@ -112,4 +112,4 @@ tempCodeRunnerFile.py
 # Keras models
 ocr/chars74k_128.hdf5
 ocr/chars74k_thresh.hdf5
-ocr/chars74k.hdf5
+ocr/chars74k_V02.hdf5
