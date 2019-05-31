@@ -117,3 +117,9 @@ ocr/model_02.hdf5
 
 # Virtual Env
 venv.
+
+# OCR Training/Testing Data
+ocr/chars_test/
+ocr/chars_train/
+ocr/labels_test.json
+ocr/labels_train.json
