@@ -116,4 +116,14 @@ ocr/chars74k_V02.hdf5
 ocr/model_02.hdf5
 
 # Virtual Env
+<<<<<<< HEAD
 venv.
+=======
+venv.
+
+# OCR Training/Testing Data
+ocr/chars_test/
+ocr/chars_train/
+ocr/labels_test.json
+ocr/labels_train.json
+>>>>>>> db5c7a071cab22f7c9f1fee786cef1f87e604486
