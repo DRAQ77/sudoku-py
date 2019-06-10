@@ -7,17 +7,19 @@ from PIL import Image, ImageDraw, ImageFont
 from keras.models import load_model
 
 try:
-    print('Loading model...')
-    model = load_model('ocr/model_02.hdf5')
+    print("Loading model...")
+    model = load_model("ocr/model_02.hdf5")
     img_dims = 64
 except OSError:
-    print('Main model not found, loading secondary model...')
-    model = load_model('model.hdf5')
+    print("Main model not found, loading secondary model...")
+    model = load_model("model.hdf5")
     img_dims = 32
 
-model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=keras.optimizers.Adadelta(),
-              metrics=['accuracy'])
+model.compile(
+    loss=keras.losses.categorical_crossentropy,
+    optimizer=keras.optimizers.Adadelta(),
+    metrics=["accuracy"],
+)
 
 
 def show(*args):
@@ -44,7 +46,9 @@ def process(img):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     greyscale = img if len(img.shape) == 2 else cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     denoise = cv2.GaussianBlur(greyscale, (9, 9), 0)
-    thresh = cv2.adaptiveThreshold(denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    thresh = cv2.adaptiveThreshold(
+        denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
     inverted = cv2.bitwise_not(thresh, 0)
     morph = cv2.morphologyEx(inverted, cv2.MORPH_OPEN, kernel)
     dilated = cv2.dilate(morph, kernel, iterations=1)
@@ -64,8 +68,12 @@ def get_corners(img):
     bottom_left = np.argmax(sums)
     bottom_right = np.argmin(differences)
 
-    corners = [largest_contour[top_left], largest_contour[top_right], largest_contour[bottom_left],
-               largest_contour[bottom_right]]
+    corners = [
+        largest_contour[top_left],
+        largest_contour[top_right],
+        largest_contour[bottom_left],
+        largest_contour[bottom_right],
+    ]
     return corners
 
 
@@ -80,7 +88,9 @@ def transform(pts, img):  # TODO: Spline transform, remove this
     height = int(max(pythagoras(top_r, bot_r), pythagoras(top_l, bot_l)))
     square = max(width, height) // 9 * 9  # Making the image dimensions divisible by 9
 
-    dim = np.array(([0, 0], [square - 1, 0], [square - 1, square - 1], [0, square - 1]), dtype='float32')
+    dim = np.array(
+        ([0, 0], [square - 1, 0], [square - 1, square - 1], [0, square - 1]), dtype="float32"
+    )
     matrix = cv2.getPerspectiveTransform(pts, dim)
     warped = cv2.warpPerspective(img, matrix, (square, square))
     return warped
@@ -114,9 +124,11 @@ def spline_transform(img, vertical, horizontal):
 
 def create_grid_mask(vertical, horizontal):
     grid = cv2.add(horizontal, vertical)
-    grid = cv2.adaptiveThreshold(grid, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 235, 2)
+    grid = cv2.adaptiveThreshold(
+        grid, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 235, 2
+    )
     grid = cv2.dilate(grid, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)
-    pts = cv2.HoughLines(grid, .3, np.pi / 90, 200)
+    pts = cv2.HoughLines(grid, 0.3, np.pi / 90, 200)
 
     def draw_lines(im, pts):
         im = np.copy(im)
@@ -142,14 +154,14 @@ def extract_digits(img):
     contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     img_area = img.shape[0] * img.shape[1]
     # Reversing contours list to loop with y coord ascending, and removing small bits of noise
-    contours_denoise = [i for i in contours[::-1] if cv2.contourArea(i) > img_area * .0005]
+    contours_denoise = [i for i in contours[::-1] if cv2.contourArea(i) > img_area * 0.0005]
     _, y_compare, _, _ = cv2.boundingRect(contours_denoise[0])
     digits = []
     row = []
 
     for i in contours_denoise:
         x, y, w, h = cv2.boundingRect(i)
-        cropped = img[y:y + h, x:x + w]
+        cropped = img[y : y + h, x : x + w]
         if y - y_compare > img.shape[1] // 40:
             row = [i[0] for i in sorted(row, key=lambda x: x[1])]
             for j in row:
@@ -174,7 +186,9 @@ def add_border(img_arr):
             pad_w = (crop_h - crop_w) + pad_h
             pad_h //= 2
             pad_w //= 2
-            border = cv2.copyMakeBorder(i, pad_h, pad_h, pad_w, pad_w, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+            border = cv2.copyMakeBorder(
+                i, pad_h, pad_h, pad_w, pad_w, cv2.BORDER_CONSTANT, value=(0, 0, 0)
+            )
             digits.append(border)
         except cv2.error:
             continue
@@ -187,7 +201,9 @@ def subdivide(img, divisions=9):
     height, _ = img.shape[:2]
     box = height // divisions
     if len(img.shape) > 2:
-        subdivided = img.reshape(height // box, box, -1, box, 3).swapaxes(1, 2).reshape(-1, box, box, 3)
+        subdivided = (
+            img.reshape(height // box, box, -1, box, 3).swapaxes(1, 2).reshape(-1, box, box, 3)
+        )
     else:
         subdivided = img.reshape(height // box, box, -1, box).swapaxes(1, 2).reshape(-1, box, box)
     return [i for i in subdivided]
@@ -216,7 +232,7 @@ def img_to_array(img_arr, img_dims):
             continue
         array = np.array([resized])
         reshaped = array.reshape(array.shape[0], img_dims, img_dims, 1)
-        flt = reshaped.astype('float32')
+        flt = reshaped.astype("float32")
         flt /= 255
         prediction = model.predict_classes(flt)
         predictions.append(prediction[0] + 1)  # OCR predicts from 0-8, changing it to 1-9
@@ -225,21 +241,7 @@ def img_to_array(img_arr, img_dims):
 
 
 def stitch_img(img_arr, img_dims):
-    result = Image.new('RGB' if len(img_arr[0].shape) > 2 else 'L', img_dims)
-    box = [0, 0]
-    for img in img_arr:
-        pil_img = Image.fromarray(img)
-        result.paste(pil_img, tuple(box))
-        if box[0] + img.shape[1] >= result.size[1]:
-            box[0] = 0
-            box[1] += img.shape[0]
-        else:
-            box[0] += img.shape[1]
-    return np.array(result)
-
-
-def stitch_img(img_arr, img_dims):
-    result = Image.new('RGB' if len(img_arr[0].shape) > 2 else 'L', img_dims)
+    result = Image.new("RGB" if len(img_arr[0].shape) > 2 else "L", img_dims)
     box = [0, 0]
     for img in img_arr:
         pil_img = Image.fromarray(img)
@@ -253,8 +255,15 @@ def stitch_img(img_arr, img_dims):
 
 
 def inverse_perspective(img, dst_img, pts):
-    pts_source = np.array([[0, 0], [img.shape[1] - 1, 0], [img.shape[1] - 1, img.shape[0] - 1], [0, img.shape[0] - 1]],
-                          dtype='float32')
+    pts_source = np.array(
+        [
+            [0, 0],
+            [img.shape[1] - 1, 0],
+            [img.shape[1] - 1, img.shape[0] - 1],
+            [0, img.shape[0] - 1],
+        ],
+        dtype="float32",
+    )
     h, status = cv2.findHomography(pts_source, pts)
     warped = cv2.warpPerspective(img, h, (dst_img.shape[1], dst_img.shape[0]))
     cv2.fillConvexPoly(dst_img, np.ceil(pts).astype(int), 0, 16)
@@ -262,28 +271,56 @@ def inverse_perspective(img, dst_img, pts):
     return dst_img
 
 
-def solve_image(img, font_color=(255, 0, 0), font_path='FreeMono.ttf'):
+def solve_image(img, font_color=(255, 0, 0), font_path="FreeMono.ttf"):
     processed = process(img)
     corners = get_corners(processed)
     warped = transform(corners, processed)
-    vertical_lines, horizontal_lines = get_grid_lines(warped)
-    mask = create_grid_mask(vertical_lines, horizontal_lines)
-    numbers = cv2.bitwise_and(warped, mask)
-    digits_sorted = extract_digits(numbers)
-    digits_border = add_border(digits_sorted)
-    digits_subd = subdivide(numbers)
+    # vertical_lines, horizontal_lines = get_grid_lines(warped)
+    # mask = create_grid_mask(vertical_lines, horizontal_lines)
+    # numbers = cv2.bitwise_and(warped, mask)
+    # digits_sorted = extract_digits(numbers)
+    # digits_border = add_border(digits_sorted)
+    # digits_subd = subdivide(numbers)
 
-    try:
-        digits_with_zeros = add_zeros(digits_border, digits_subd)
-    except IndexError:
-        sys.stderr.write('ERROR: Image too warped')
-        sys.exit()
+    # try:
+    #     digits_with_zeros = add_zeros(digits_border, digits_subd)
+    # except IndexError:
+    #     sys.stderr.write("ERROR: Image too warped")
+    #     sys.exit()
 
-    try:
-        puzzle = img_to_array(digits_with_zeros, img_dims)
-    except AttributeError:
-        sys.stderr.write('ERROR: OCR predictions failed')
-        sys.exit()
+    # try:
+    #     puzzle = img_to_array(digits_with_zeros, img_dims)
+    # except AttributeError:
+    #     sys.stderr.write("ERROR: OCR predictions failed")
+    #     sys.exit()
+
+    puzzle = [
+        [5, 3, 4, 6, 7, 8, 9, 1, 2],
+        [6, 7, 2, 1, 9, 5, 3, 4, 8],
+        [1, 9, 8, 3, 4, 2, 5, 6, 7],
+        [8, 5, 9, 7, 6, 1, 4, 2, 3],
+        [4, 2, 6, 8, 5, 3, 7, 9, 1],
+        [7, 1, 3, 9, 2, 4, 8, 5, 6],
+        [9, 6, 1, 5, 3, 7, 2, 8, 4],
+        [2, 8, 7, 4, 1, 9, 6, 3, 5],
+        [3, 4, 5, 2, 8, 6, 1, 7, 9],
+    ]
+    x = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
+
+    for r_idx, row in enumerate(puzzle):
+        for v_idx, val in enumerate(row):
+            if val == x[r_idx][v_idx]:
+                puzzle[r_idx][v_idx] = 0
 
     warped_rgb = transform(corners, img)
     warped_rgb_subd = subdivide(warped_rgb)
@@ -299,20 +336,23 @@ def solve_image(img, font_color=(255, 0, 0), font_path='FreeMono.ttf'):
         draw = ImageDraw.Draw(pil_img)
         fnt = ImageFont.truetype(font_path, img_h)
         font_w, font_h = draw.textsize(str(solution), font=fnt)
-        if str(solution) != '0':
-            draw.text(((img_w - font_w) / 2, (img_h - font_h) / 2 - img_h // 10), str(solution),
-                    fill=(font_color if len(img.shape) > 2 else 0), font=fnt)
+        if str(solution) != "0":
+            draw.text(
+                ((img_w - font_w) / 2, (img_h - font_h) / 2 - img_h // 10),
+                str(solution),
+                fill=(font_color if len(img.shape) > 2 else 0),
+                font=fnt,
+            )
         cv2_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
         img_solved.append(np.array(cv2_img))
-    
-    return stitch_img(img_solved, (w, h)), corners
 
+    return stitch_img(img_solved, (w, h)), corners
 
 
 def main(path, out_path, framerate, dims):
     cap = cv2.VideoCapture(path)
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(out_path, fourcc, framerate, dims)
 
     while True:
@@ -327,12 +367,14 @@ def main(path, out_path, framerate, dims):
 
         # show(warped_inverse)
         out.write(warped_inverse)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    main('b.mp4', 'predictions.avi', 30.0, (1920, 1080))
+
+if __name__ == "__main__":
+    main("sudoku.mp4", "solve.avi", 30.0, (1920, 1080))
+

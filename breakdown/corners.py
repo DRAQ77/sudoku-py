@@ -13,7 +13,9 @@ def process(img):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     greyscale = img if len(img.shape) == 2 else cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     denoise = cv2.GaussianBlur(greyscale, (9, 9), 0)
-    thresh = cv2.adaptiveThreshold(denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    thresh = cv2.adaptiveThreshold(
+        denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
     inverted = cv2.bitwise_not(thresh, 0)
     morph = cv2.morphologyEx(inverted, cv2.MORPH_OPEN, kernel)
     dilated = cv2.dilate(morph, kernel, iterations=1)
@@ -33,12 +35,16 @@ def get_corners(img):
     bottom_left = np.argmax(sums)
     bottom_right = np.argmin(differences)
 
-    corners = [largest_contour[top_left], largest_contour[top_right], largest_contour[bottom_left],
-               largest_contour[bottom_right]]
+    corners = [
+        largest_contour[top_left],
+        largest_contour[top_right],
+        largest_contour[bottom_left],
+        largest_contour[bottom_right],
+    ]
     return corners
 
 
-def display_points(in_img, points, radius=10, color=(0, 0, 255)):
+def display_points(in_img, points, radius=20, color=(0, 0, 255)):
     # https://gist.github.com/mineshpatel1/22e86200eee86ebe3e221343b26fc3f3#file-display_points-py
     img = in_img.copy()
 
@@ -57,7 +63,7 @@ def display_points(in_img, points, radius=10, color=(0, 0, 255)):
 def main(path, out_path, framerate, dims):
     cap = cv2.VideoCapture(path)
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(out_path, fourcc, framerate, dims)
 
     while True:
@@ -72,12 +78,14 @@ def main(path, out_path, framerate, dims):
         points = display_points(frame, corners)
 
         out.write(points)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    main('b.mp4', 'corners.avi', 30.0, (1920, 1080))
+
+if __name__ == "__main__":
+    main("sudoku.mp4", "corners.avi", 30.0, (1920, 1080))
+

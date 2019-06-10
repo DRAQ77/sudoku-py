@@ -13,7 +13,9 @@ def process(img):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     greyscale = img if len(img.shape) == 2 else cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     denoise = cv2.GaussianBlur(greyscale, (9, 9), 0)
-    thresh = cv2.adaptiveThreshold(denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    thresh = cv2.adaptiveThreshold(
+        denoise, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
     inverted = cv2.bitwise_not(thresh, 0)
     morph = cv2.morphologyEx(inverted, cv2.MORPH_OPEN, kernel)
     dilated = cv2.dilate(morph, kernel, iterations=1)
@@ -33,8 +35,12 @@ def get_corners(img):
     bottom_left = np.argmax(sums)
     bottom_right = np.argmin(differences)
 
-    corners = [largest_contour[top_left], largest_contour[top_right], largest_contour[bottom_left],
-               largest_contour[bottom_right]]
+    corners = [
+        largest_contour[top_left],
+        largest_contour[top_right],
+        largest_contour[bottom_left],
+        largest_contour[bottom_right],
+    ]
     return corners
 
 
@@ -49,7 +55,9 @@ def transform(pts, img):  # TODO: Spline transform, remove this
     height = int(max(pythagoras(top_r, bot_r), pythagoras(top_l, bot_l)))
     square = max(width, height) // 9 * 9  # Making the image dimensions divisible by 9
 
-    dim = np.array(([0, 0], [square - 1, 0], [square - 1, square - 1], [0, square - 1]), dtype='float32')
+    dim = np.array(
+        ([0, 0], [square - 1, 0], [square - 1, square - 1], [0, square - 1]), dtype="float32"
+    )
     matrix = cv2.getPerspectiveTransform(pts, dim)
     warped = cv2.warpPerspective(img, matrix, (square, square))
     return warped
@@ -75,9 +83,11 @@ def get_grid_lines(img, length=12):
 
 def create_grid_mask(vertical, horizontal):
     grid = cv2.add(horizontal, vertical)
-    grid = cv2.adaptiveThreshold(grid, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 235, 2)
+    grid = cv2.adaptiveThreshold(
+        grid, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 235, 2
+    )
     grid = cv2.dilate(grid, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)
-    pts = cv2.HoughLines(grid, .3, np.pi / 90, 200)
+    pts = cv2.HoughLines(grid, 0.3, np.pi / 90, 200)
 
     def draw_lines(im, pts):
         im = np.copy(im)
@@ -103,7 +113,7 @@ def extract_digits(img):
     contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     img_area = img.shape[0] * img.shape[1]
     # Reversing contours list to loop with y coord ascending, and removing small bits of noise
-    contours_denoise = [i for i in contours[::-1] if cv2.contourArea(i) > img_area * .0005]
+    contours_denoise = [i for i in contours[::-1] if cv2.contourArea(i) > img_area * 0.0005]
     _, y_compare, _, _ = cv2.boundingRect(contours_denoise[0])
     digits = []
     row = []
@@ -111,8 +121,8 @@ def extract_digits(img):
     countour_arr = []
     for i in contours_denoise:
         x, y, w, h = cv2.boundingRect(i)
-        countour_arr.append((x,y,w,h))
-        cropped = img[y:y + h, x:x + w]
+        countour_arr.append((x, y, w, h))
+        cropped = img[y : y + h, x : x + w]
         if y - y_compare > img.shape[1] // 40:
             row = [i[0] for i in sorted(row, key=lambda x: x[1])]
             for j in row:
@@ -129,8 +139,15 @@ def extract_digits(img):
 
 
 def inverse_perspective(img, dst_img, pts):
-    pts_source = np.array([[0, 0], [img.shape[1] - 1, 0], [img.shape[1] - 1, img.shape[0] - 1], [0, img.shape[0] - 1]],
-                          dtype='float32')
+    pts_source = np.array(
+        [
+            [0, 0],
+            [img.shape[1] - 1, 0],
+            [img.shape[1] - 1, img.shape[0] - 1],
+            [0, img.shape[0] - 1],
+        ],
+        dtype="float32",
+    )
     h, status = cv2.findHomography(pts_source, pts)
     warped = cv2.warpPerspective(img, h, (dst_img.shape[1], dst_img.shape[0]))
     cv2.fillConvexPoly(dst_img, np.ceil(pts).astype(int), 0, 16)
@@ -141,7 +158,7 @@ def inverse_perspective(img, dst_img, pts):
 def main(path, out_path, framerate, dims):
     cap = cv2.VideoCapture(path)
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(out_path, fourcc, framerate, dims)
 
     while True:
@@ -150,7 +167,7 @@ def main(path, out_path, framerate, dims):
 
         if frame is None:
             break
-            
+
         processed = process(frame)
         corners = get_corners(processed)
         warped = transform(corners, processed)
@@ -160,18 +177,20 @@ def main(path, out_path, framerate, dims):
         numbers = cv2.bitwise_and(warped, mask)
         contours = extract_digits(numbers)
 
-        for x,y,w,h in contours:
-            cv2.rectangle(warped_rgb, (x,y), (x+w,y+h), (0, 0, 255), 3)
-        
+        for x, y, w, h in contours:
+            cv2.rectangle(warped_rgb, (x, y), (x + w, y + h), (0, 0, 255), 3)
+
         warped_inverse = inverse_perspective(warped_rgb, frame.copy(), np.array(corners))
         # show(warped_inverse)
         out.write(warped_inverse)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    main('b.mp4', 'numbers.avi', 30.0, (1920, 1080))
+
+if __name__ == "__main__":
+    main("sudoku.mp4", "numbers.avi", 30.0, (1920, 1080))
+
